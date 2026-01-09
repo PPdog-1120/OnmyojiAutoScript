@@ -13,7 +13,7 @@ import os
 import inflection
 import asyncio
 import json
-
+import logging
 from datetime import date
 import threading
 from typing import Callable
@@ -336,13 +336,84 @@ class Script:
         return func(next_run)
 
     def _wait_close_game(self, next_run: datetime) -> bool:
-        logger.info("Close game during wait")
-        self.device.app_stop()
-        self.device.release_during_wait()
-        if not self.wait_until(next_run):
+        """
+        核心修改：关闭游戏后立即关闭模拟器（无时长判断）
+        等待到任务时间后，先启动模拟器，再启动游戏
+        仅新增模拟器关闭/启动逻辑，其余保持原有流程
+        """
+        logger.info("===== 执行close_game空闲策略 =====")
+        try:
+            # 1. 原始逻辑：关闭游戏
+            logger.info("关闭阴阳师游戏进程...")
+            self.device.app_stop()
+            self.device.release_during_wait()
+
+            # 2. 新增逻辑：关闭游戏后立即关闭模拟器（无时长判断）
+            logger.warning("关闭游戏后，执行模拟器关闭操作...")
+            if hasattr(self.device, "emulator_instance") and self.device.emulator_instance:
+                # 调用模拟器关闭方法（兼容原有封装）
+                try:
+                    stop_success = self.device._emulator_function_wrapper(self.device._emulator_stop)
+                    if stop_success:
+                        logger.info("✅ 模拟器关闭成功")
+                        # 重置设备连接（可选，避免下次启动异常）
+                        if hasattr(self.device, "reset_device"):
+                            self.device.reset_device()
+                    else:
+                        logger.error("❌ 模拟器关闭失败")
+                except Exception as e:
+                    logger.error(f"调用模拟器关闭方法失败：{e}")
+            else:
+                logger.info("未检测到模拟器实例，跳过关闭操作")
+
+            # 3. 原始逻辑：等待到任务执行时间
+            logger.info(f"等待到任务执行时间：{next_run}")
+            if not self.wait_until(next_run):
+                return False
+
+            # ========== 核心修改部分 ==========
+            # 替换原 self.run("Restart")，拆分为「启动模拟器→启动游戏」
+            logger.info("执行重启流程：先启动模拟器...")
+            # 3.1 启动模拟器（与关闭逻辑对应，使用封装方法）
+            if hasattr(self.device, "emulator_instance"):
+                try:
+                    start_success = self.device._emulator_function_wrapper(self.device._emulator_start)
+                    if start_success:
+                        logger.info("✅ 模拟器启动成功")
+                        # 可选：等待模拟器完全加载（根据模拟器性能调整时长）
+                        import time
+                        time.sleep(10)
+                    else:
+                        logger.error("❌ 模拟器启动失败，终止流程")
+                        return False
+                except Exception as e:
+                    logger.error(f"调用模拟器启动方法失败：{e}")
+                    return False
+            else:
+                logger.error("未检测到模拟器实例，无法启动模拟器")
+                return False
+
+            # 3.2 启动阴阳师游戏（复用设备的 app_start 方法）
+            logger.info("启动阴阳师游戏进程...")
+            try:
+                self.run("Restart")
+                logger.info("✅ 游戏启动成功")
+            except Exception as e:
+                logger.error(f"游戏启动失败：{e}")
+                return False
+            # ========== 修改结束 ==========
+
+            return True
+
+        except Exception as e:
+            logger.error(f"执行close_game策略失败：{e}")
+            logger.error(f"异常详情：{traceback.format_exc()}")
             return False
-        self.run("Restart")
-        return True
+
+        except Exception as e:
+            logger.error(f"执行close_game策略失败：{e}")
+            logger.error(f"异常详情：{traceback.format_exc()}")
+            return False
 
     def _wait_goto_main(self, next_run: datetime) -> bool:
         logger.info("Goto main page during wait")
