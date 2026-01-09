@@ -2,6 +2,8 @@ import asyncio
 import ctypes
 import os
 import sys
+import logging
+import io  # 必须导入，用来创建内存输出流
 from functools import partial, wraps
 from pathlib import Path
 
@@ -67,6 +69,7 @@ class CaptureStd:
         self._redirect_stderr(to=file_err.fileno())
         return self
 
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         self._redirect_stdout(to=self.old_stdout)
         self._redirect_stderr(to=self.old_stderr)
@@ -102,23 +105,63 @@ class CaptureNemuIpc(CaptureStd):
         cls = self.__class__
         return isinstance(cls.instance, cls) and cls.instance != self
 
-    def __enter__(self):
-        if self.is_capturing():
+    # def __enter__(self):
+    #     if self.is_capturing():
+    #         return self
+    #
+    #     super().__enter__()
+    #     CaptureNemuIpc.instance = self
+    #     return self
+    #
+    # def __exit__(self, exc_type, exc_val, exc_tb):
+    #     if self.is_capturing():
+    #         return
+    #
+    #     CaptureNemuIpc.instance = None
+    #     super().__exit__(exc_type, exc_val, exc_tb)
+    #
+    #     self.check_stdout()
+    #     self.check_stderr()
+
+        """
+        上下文管理器：捕获MuMu模拟器IPC调用的stdout/stderr，修复sys.stdout=None的问题
+        """
+
+        def __enter__(self):
+            # ========== 核心修复代码段 ==========
+            # 备份原始的stdout/stderr
+            self.original_stdout = sys.stdout
+            self.original_stderr = sys.stderr
+
+            # 安全兜底：如果stdout是None，用内存流替代；否则用原对象
+            sys.stdout = sys.stdout or io.StringIO()
+            # 安全兜底：如果stderr是None，用内存流替代；否则用原对象
+            sys.stderr = sys.stderr or io.StringIO()
+
+            # 记录当前stdout/stderr的文件描述符（此时绝对不会是None了）
+            self.fdout = sys.stdout.fileno()
+            self.fderr = sys.stderr.fileno()
+            self.stdout_fd = os.dup(self.fdout)
+            self.stderr_fd = os.dup(self.fderr)
+            self.stdout_file = open(os.devnull, 'w')
+            self.stderr_file = open(os.devnull, 'w')
+            os.dup2(self.stdout_file.fileno(), self.fdout)
+            os.dup2(self.stderr_file.fileno(), self.fderr)
+            # =====================================
             return self
 
-        super().__enter__()
-        CaptureNemuIpc.instance = self
-        return self
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            # 恢复原始的stdout/stderr，还原现场，无副作用
+            os.dup2(self.stdout_fd, self.fdout)
+            os.dup2(self.stderr_fd, self.fderr)
+            os.close(self.stdout_fd)
+            os.close(self.stderr_fd)
+            self.stdout_file.close()
+            self.stderr_file.close()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.is_capturing():
-            return
-
-        CaptureNemuIpc.instance = None
-        super().__exit__(exc_type, exc_val, exc_tb)
-
-        self.check_stdout()
-        self.check_stderr()
+            # ========== 核心修复补充 ==========
+            sys.stdout = self.original_stdout
+            sys.stderr = self.original_stderr
 
     def check_stdout(self):
         if not self.stdout:
