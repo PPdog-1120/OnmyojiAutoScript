@@ -281,6 +281,7 @@ class GameUi(BaseTask, GameUiAssets):
                 continue
             # 跳转页面
             max_wait_timer = Timer(6).start()
+            logger.info(f'Wait appear and operate {button} on {current_page}')
             while not max_wait_timer.reached():
                 if timeout_timer.reached():
                     return False
@@ -291,9 +292,8 @@ class GameUi(BaseTask, GameUiAssets):
                         break
                 if self.appear_then_operate(button, interval=0.8, skip_first_screenshot=False):
                     break
-                logger.warning(f"[{max_wait_timer.current():.1f}s]Failed click {button} on {current_page}, retry...")
-                sleep(0.8)
             else:
+                logger.warning(f'Failed recognize {button} on {current_page}')
                 self.ui_get_current_page(skip_first_screenshot=False)
                 # 当前页面不是对应路径的页面, 则尝试下一个页面
                 if self.ui_current != current_page:
@@ -316,7 +316,15 @@ class GameUi(BaseTask, GameUiAssets):
         if not page.additional:
             return
         for btn in page.additional:
-            if self.appear_then_operate(btn, interval=interval, skip_first_screenshot=skip_first_screenshot):
+            # 支持复合条件操作: [条件元素, 操作元素]。出现条件图片时点击另一个区域。
+            if isinstance(btn, list) and len(btn) == 2:
+                condition, action = btn
+                self.maybe_screenshot(skip_first_screenshot)
+                if self.appear(condition):
+                    if self.appear_then_operate(action, interval=interval, skip_first_screenshot=False):
+                        logger.info(f'Page {page} additional conditional {condition} -> {action} executed')
+                        skip_first_screenshot = False
+            elif self.appear_then_operate(btn, interval=interval, skip_first_screenshot=skip_first_screenshot):
                 logger.info(f'Page {page} additional {btn} clicked')
                 skip_first_screenshot = False
 

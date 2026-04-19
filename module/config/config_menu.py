@@ -23,7 +23,7 @@ class ConfigMenu:
         # 日常的任务
         self.menu["Daily Task"] = ['DailyTrifles', 'AreaBoss', 'GoldYoukai', 'ExperienceYoukai', 'Nian',
                                    'TalismanPass', 'DemonEncounter', 'Pets', 'SoulsTidy', 'Delegation', 'WantedQuests',
-                                   'Tako']
+                                   'Tako', 'AutoCheckinBigGod']
         # 很肝的任务
         self.menu["Liver Emperor Exclusive"] = [
             "BondlingFairyland",
@@ -37,7 +37,7 @@ class ConfigMenu:
         ]
         # 阴阳寮
         self.menu["Guild"] = ['KekkaiUtilize', 'KekkaiActivation', 'RealmRaid', 'RyouToppa', 'Dokan', 'CollectiveMissions',
-                              'Hunt' , 'AbyssShadows', 'GuildBanquet', 'DemonRetreat']
+                              'Hunt' , 'AbyssShadows', 'GuildBanquet', 'DemonRetreat', 'GuildActivityMonitor']
         # 每周任务
         self.menu["Weekly Task"] = ['TrueOrochi', 'RichMan', 'Secret', 'WeeklyTrifles', 'MysteryShop', 'Duel']
         # 活动的任务

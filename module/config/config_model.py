@@ -1,6 +1,7 @@
 # This Python file uses the following encoding: utf-8
 # @author runhey
 # github https://github.com/runhey
+from tasks.GuildActivityMonitor.config import GuildActivityMonitor
 from typing import Dict, Any
 
 import re
@@ -35,6 +36,7 @@ from tasks.SoulsTidy.config import SoulsTidy
 from tasks.Delegation.config import Delegation
 from tasks.WantedQuests.config import WantedQuests
 from tasks.Tako.config import Tako
+from tasks.AutoCheckinBigGod.config import AutoCheckinBigGod
 # ----------------------------------------------------------------------------------------------------------------------
 from tasks.Orochi.config import Orochi
 from tasks.OrochiMoans.config import OrochiMoans
@@ -48,6 +50,7 @@ from tasks.Hunt.config import Hunt
 from tasks.AbyssShadows.config import AbyssShadows
 from tasks.GuildBanquet.config import GuildBanquet
 from tasks.DemonRetreat.config import DemonRetreat
+from tasks.GuildActivityMonitor.config import GuildActivityMonitor
 
 # 这一部分是活动的配置-----------------------------------------------------------------------------------------------------
 from tasks.ActivityShikigami.config import ActivityShikigami
@@ -103,6 +106,7 @@ class ConfigModel(ConfigBase):
     exploration: Exploration = Field(default_factory=Exploration)
     wanted_quests: WantedQuests = Field(default_factory=WantedQuests)
     tako: Tako = Field(default_factory=Tako)
+    auto_checkin_big_god: AutoCheckinBigGod = Field(default_factory=AutoCheckinBigGod)
 
     # 这些是刷御魂的
     orochi: Orochi = Field(default_factory=Orochi)
@@ -145,6 +149,7 @@ class ConfigModel(ConfigBase):
     abyss_shadows: AbyssShadows = Field(default_factory=AbyssShadows)
     guild_banquet: GuildBanquet = Field(default_factory=GuildBanquet)
     demon_retreat: DemonRetreat = Field(default_factory=DemonRetreat)
+    guild_activity_monitor: GuildActivityMonitor = Field(default_factory=GuildActivityMonitor)
 
     def __init__(self, config_name: str=None) -> None:
         """
